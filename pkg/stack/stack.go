@@ -291,7 +291,7 @@ func (s *SipStack) handleRequest(req sip.Request, tx sip.ServerTransaction) {
 	go handler(req, tx)
 }
 
-//Request Send SIP message
+// Request Send SIP message
 func (s *SipStack) Request(req sip.Request) (sip.ClientTransaction, error) {
 	if !s.running.IsSet() {
 		return nil, fmt.Errorf("can not send through stopped server")
@@ -478,6 +478,7 @@ func (s *SipStack) appendAutoHeaders(msg sip.Message) {
 		sip.OPTIONS:  true,
 		sip.REFER:    true,
 		sip.NOTIFY:   true,
+		sip.MESSAGE:  true,
 	}
 
 	var msgMethod sip.RequestMethod
@@ -544,6 +545,7 @@ func (s *SipStack) getAllowedMethods() []sip.RequestMethod {
 		sip.CANCEL:  true,
 		sip.INFO:    true,
 		sip.OPTIONS: true,
+		sip.MESSAGE: true,
 	}
 
 	s.hmu.RLock()

@@ -38,22 +38,26 @@ type UserAgentConfig struct {
 	SipStack *stack.SipStack
 }
 
-//InviteSessionHandler .
+// InviteSessionHandler .
 type InviteSessionHandler func(s *session.Session, req *sip.Request, resp *sip.Response, status session.Status)
 
-//RegisterHandler .
+// RegisterHandler .
 type RegisterHandler func(regState account.RegisterState)
 
-//UserAgent .
+// MessageHandler
+type MessageHandler func(req *sip.Request)
+
+// UserAgent .
 type UserAgent struct {
 	InviteStateHandler   InviteSessionHandler
 	RegisterStateHandler RegisterHandler
+	MessageStateHandler  MessageHandler
 	config               *UserAgentConfig
 	iss                  sync.Map /*Invite Session*/
 	log                  log.Logger
 }
 
-//NewUserAgent .
+// NewUserAgent .
 func NewUserAgent(config *UserAgentConfig) *UserAgent {
 	ua := &UserAgent{
 		config:               config,
@@ -68,6 +72,8 @@ func NewUserAgent(config *UserAgentConfig) *UserAgent {
 	stack.OnRequest(sip.BYE, ua.handleBye)
 	stack.OnRequest(sip.CANCEL, ua.handleCancel)
 	stack.OnRequest(sip.UPDATE, ua.handleUpdate)
+	stack.OnRequest(sip.MESSAGE, ua.handleMessage)
+	stack.OnRequest(sip.NOTIFY, ua.handleNotfiy)
 	return ua
 }
 
@@ -576,4 +582,17 @@ func (ua *UserAgent) updateContact2UAAddr(transport string, from sip.ContactUri)
 	ret.SetHost(stackAddr.Host)
 	ret.SetPort(stackAddr.Port)
 	return ret
+}
+
+func (ua *UserAgent) handleMessage(request sip.Request, tx sip.ServerTransaction) {
+	ua.Log().Debugf("handleMessage: Request => %s", request.Short())
+	response := sip.NewResponseFromRequest(request.MessageID(), request, 200, "OK", "")
+	tx.Respond(response)
+	ua.MessageStateHandler(&request)
+}
+
+func (ua *UserAgent) handleNotfiy(request sip.Request, tx sip.ServerTransaction) {
+	ua.Log().Debugf("handleNotfiy: Request => %s", request.Short())
+	response := sip.NewResponseFromRequest(request.MessageID(), request, 200, "OK", "")
+	tx.Respond(response)
 }
