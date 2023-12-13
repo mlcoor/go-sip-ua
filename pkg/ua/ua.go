@@ -146,6 +146,54 @@ func (ua *UserAgent) SendRegister(profile *account.Profile, recipient sip.SipUri
 	return register, nil
 }
 
+func (ua *UserAgent) SendMessage(profile *account.Profile, target sip.Uri, recipient sip.SipUri, expires uint32, body interface{}, contentType sip.ContentType) error {
+	from := &sip.Address{
+		DisplayName: sip.String{Str: profile.DisplayName},
+		Uri:         profile.URI,
+		Params:      sip.NewParams().Add("tag", sip.String{Str: util.RandString(8)}),
+	}
+
+	to := &sip.Address{
+		Uri: target,
+	}
+
+	request, err := ua.buildRequest(sip.MESSAGE, from, to, nil, recipient, profile.Routes, nil)
+	if err != nil {
+		ua.Log().Errorf("INVITE: err = %v", err)
+		return err
+	}
+
+	if body != nil {
+		if contentType.Equals(sip.ContentType("application/octet-stream")) {
+			bodyBuffer := body.(bytes.Buffer)
+			(*request).SetBody(bodyBuffer.String(), true)
+		} else {
+			bodyString := body.(string)
+			(*request).SetBody(bodyString, true)
+		}
+		(*request).AppendHeader(&contentType)
+	}
+
+	var authorizer *auth.ClientAuthorizer = nil
+	if profile.AuthInfo != nil {
+		authorizer = auth.NewClientAuthorizer(profile.AuthInfo.AuthUser, profile.AuthInfo.Password)
+	}
+
+	resp, err := ua.RequestWithContext(context.TODO(), *request, authorizer, false, 1)
+	if err != nil {
+		ua.Log().Errorf("INVITE: Request [INVITE] failed, err => %v", err)
+		return err
+	}
+
+	if resp != nil {
+		stateCode := resp.StatusCode()
+		ua.Log().Debugf("INVITE: resp %d => %s", stateCode, resp.String())
+		return fmt.Errorf("Invite session is unsuccessful, code: %d, reason: %s", stateCode, resp.String())
+	}
+
+	return nil
+}
+
 func (ua *UserAgent) Invite(profile *account.Profile, target sip.Uri, recipient sip.SipUri, body *string) (*session.Session, error) {
 	return ua.InviteWithContext(context.TODO(), profile, target, recipient, body)
 }
