@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ghettovoice/gosip/log"
+	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/sirupsen/logrus"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
@@ -34,15 +35,15 @@ func (ml *MyLogger) Level() string {
 }
 
 var (
-	loggers map[string]*MyLogger
+	loggers *xsync.MapOf[string, *MyLogger]
 )
 
 func init() {
-	loggers = make(map[string]*MyLogger)
+	loggers = xsync.NewMapOf[string, *MyLogger]()
 }
 
 func NewLogrusLogger(level log.Level, prefix string, fields log.Fields) log.Logger {
-	if logger, found := loggers[prefix]; found {
+	if logger, found := loggers.Load(prefix); found {
 		return logger.Logger.WithPrefix(prefix)
 	}
 	l := logrus.New()
@@ -55,16 +56,16 @@ func NewLogrusLogger(level log.Level, prefix string, fields log.Fields) log.Logg
 	}
 	l.SetReportCaller(true)
 	logger := log.NewLogrusLogger(l, "main", fields)
-	loggers[prefix] = &MyLogger{
+	loggers.Store(prefix, &MyLogger{
 		Logger: logger,
 		level:  level,
-	}
+	})
 	logger.SetLevel(uint32((level)))
 	return logger.WithPrefix(prefix)
 }
 
 func SetLogLevel(prefix string, level log.Level) error {
-	if logger, found := loggers[prefix]; found {
+	if logger, found := loggers.Load(prefix); found {
 		logger.level = level
 		logger.Logger.SetLevel(uint32(level))
 		return nil
@@ -72,6 +73,6 @@ func SetLogLevel(prefix string, level log.Level) error {
 	return fmt.Errorf("logger [%v] not found", prefix)
 }
 
-func GetLoggers() map[string]*MyLogger {
+func GetLoggers() *xsync.MapOf[string, *MyLogger] {
 	return loggers
 }

@@ -52,9 +52,10 @@ func consoleLoop(b2bua *b2bua.B2BUA) {
 		switch t {
 		case "show loggers":
 			loggers := utils.GetLoggers()
-			for prefix, log := range loggers {
-				fmt.Printf("%v => %v\n", prefix, log.Level())
-			}
+			loggers.Range(func(key string, value *utils.MyLogger) bool {
+				fmt.Printf("%v => %v\n", key, value.Level())
+				return true
+			})
 		case "set debug on":
 			b2bua.SetLogLevel(log.DebugLevel)
 			fmt.Printf("Set Log level to debug\n")
