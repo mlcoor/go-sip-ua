@@ -261,40 +261,14 @@ func (ua *UserAgent) Request(req *sip.Request) (sip.ClientTransaction, error) {
 func (ua *UserAgent) handleBye(request sip.Request, tx sip.ServerTransaction) {
 	ua.Log().Debugf("handleBye: Request => %s, body => %s", request.Short(), request.Body())
 	response := sip.NewResponseFromRequest(request.MessageID(), request, 200, "OK", "")
-
-	if viaHop, ok := request.ViaHop(); ok {
-		var (
-			host string
-			port sip.Port
-		)
-		host = viaHop.Host
-		if viaHop.Params != nil {
-			if received, ok := viaHop.Params.Get("received"); ok && received.String() != "" {
-				host = received.String()
-			}
-			if viaHop.Port != nil {
-				port = *viaHop.Port
-			} else if rport, ok := viaHop.Params.Get("rport"); ok && rport != nil && rport.String() != "" {
-				if p, err := strconv.Atoi(rport.String()); err == nil {
-					port = sip.Port(uint16(p))
-				}
-			} else {
-				port = sip.DefaultPort(request.Transport())
-			}
-		}
-
-		dest := fmt.Sprintf("%v:%v", host, port)
-		response.SetDestination(dest)
-	}
-
 	tx.Respond(response)
 	callID, ok := request.CallID()
-	toHeader, ok2 := request.To()
+	fromHeader, ok2 := request.From()
 	if ok && ok2 {
-		toTag, _ := toHeader.Params.Get("tag")
-		if v, found := ua.iss.Load(NewSessionKey(*callID, toTag)); found {
+		fromTag, _ := fromHeader.Params.Get("tag")
+		if v, found := ua.iss.Load(NewSessionKey(*callID, fromTag)); found {
 			is := v.(*session.Session)
-			ua.iss.Delete(NewSessionKey(*callID, toTag))
+			ua.iss.Delete(NewSessionKey(*callID, fromTag))
 			var transaction sip.Transaction = tx.(sip.Transaction)
 			ua.handleInviteState(is, &request, &response, session.Terminated, &transaction)
 		}
