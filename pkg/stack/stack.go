@@ -378,6 +378,7 @@ func (s *SipStack) prepareRequest(req sip.Request) sip.Request {
 			ProtocolName:    "SIP",
 			ProtocolVersion: "2.0",
 			Params: sip.NewParams().
+				Add("rport", nil).
 				Add("branch", sip.String{Str: sip.GenerateBranch()}),
 		}
 
